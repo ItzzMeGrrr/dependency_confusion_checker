@@ -19,16 +19,19 @@ ERROR = Fore.RED
 RESET = Fore.RESET
 
 parser = argparse.ArgumentParser(description="Dependency Confusion Checker")
-parser.add_argument('url',help="URL of package.json file.")
+parser.add_argument('url', help="URL of package.json file.", type=str)
 parser.add_argument("-o", "--output", help="Output file name.", type=str)
 parser.add_argument(
     "-t", "--type", help="Output only certain type of packages.", choices=["outdated", "updated", "phantom"], type=str)
+parser.add_argument("-q", "--quiet", help="Suppress output", action="store_true")
 args = parser.parse_args()
 
+quiet_mode = args.quiet
 
 def custom_print(text, color):
     '''Prints the text in the specified color'''
-    print(color, text, RESET)
+    if not quiet_mode:
+        print(color, text, RESET)
 
 
 def check_deps(deps):
@@ -79,17 +82,20 @@ def get_packages_by_version(url):
 
 if __name__ == "__main__":
     '''Entry point'''
-    custom_print("=== Dependency Confusion Checker ===", INFO)
-    custom_print("Press Ctrl + C to exit", INFO)
+    print(f"{INFO}=== Dependency Confusion Checker ==={RESET}")
+    print(f"{INFO}Press Ctrl + C to exit{RESET}")
+    if quiet_mode:
+        print(f"{INFO}Quiet mode enabled{RESET}")
     try:
         url = args.url
         output = args.output
-        if(os.path.exists(output)):
-            custom_print(f"[-] Output file {output} already exists", ERROR)
-            choice = input(f"{INFO}Do you want to overwrite it? [y/n] {RESET}")
-            if not (choice == "y" or choice == "Y"):
-                custom_print("[-] Exiting...", ERROR)
-                exit(1)
+        if output != None:
+            if(os.path.exists(output)):
+                custom_print(f"[-] Output file {output} already exists", ERROR)
+                choice = input(f"{INFO}Do you want to overwrite it? [y/n] {RESET}")
+                if not (choice == "y" or choice == "Y"):
+                    custom_print("[-] Exiting...", ERROR)
+                    exit(1)
         out_type = args.type
         packages_version = get_packages_by_version(url)
         if output != None:

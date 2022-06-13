@@ -2,7 +2,7 @@
 A tool to check dependency confusion vulnerability 
 
 ```
-usage: dependency_confusion_checker.py [-h] [-o OUTPUT] [-t {outdated,updated,phantom}] url
+usage: dependency_confusion_checker.py [-h] [-o OUTPUT] [-t {outdated,updated,phantom}] [-q] url
 
 Dependency Confusion Checker
 
@@ -15,5 +15,5 @@ optional arguments:
                         Output file name.
   -t {outdated,updated,phantom}, --type {outdated,updated,phantom}
                         Output only certain type of packages.
-
+  -q, --quiet           Suppress output
 ```
