@@ -2,13 +2,15 @@
 A tool to check dependency confusion vulnerability 
 
 ```
-usage: dependency_confusion_checker.py [-h] -u URL [-o OUTPUT] [-t {outdated,updated,phantom}]
+usage: dependency_confusion_checker.py [-h] [-o OUTPUT] [-t {outdated,updated,phantom}] url
 
 Dependency Confusion Checker
 
+positional arguments:
+  url                   URL of package.json file.
+
 optional arguments:
   -h, --help            show this help message and exit
-  -u URL, --url URL     URL of package.json file.
   -o OUTPUT, --output OUTPUT
                         Output file name.
   -t {outdated,updated,phantom}, --type {outdated,updated,phantom}

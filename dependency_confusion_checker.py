@@ -19,8 +19,7 @@ ERROR = Fore.RED
 RESET = Fore.RESET
 
 parser = argparse.ArgumentParser(description="Dependency Confusion Checker")
-parser.add_argument(
-    "-u", "--url", help="URL of package.json file.", required=True)
+parser.add_argument('url',help="URL of package.json file.")
 parser.add_argument("-o", "--output", help="Output file name.", type=str)
 parser.add_argument(
     "-t", "--type", help="Output only certain type of packages.", choices=["outdated", "updated", "phantom"], type=str)
