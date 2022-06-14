@@ -1,2 +1,19 @@
 # dependency_confusion_checker
-A Tool to check dependency confusion vulnerability 
+A tool to check dependency confusion vulnerability 
+
+```
+usage: dependency_confusion_checker.py [-h] [-o OUTPUT] [-t {outdated,updated,phantom}] [-q] url
+
+Dependency Confusion Checker
+
+positional arguments:
+  url                   URL of package.json file.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Output file name.
+  -t {outdated,updated,phantom}, --type {outdated,updated,phantom}
+                        Output only certain type of packages.
+  -q, --quiet           Suppress output
+```
