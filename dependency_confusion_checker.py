@@ -22,11 +22,13 @@ parser = argparse.ArgumentParser(description="Dependency Confusion Checker")
 parser.add_argument('url', help="URL of package.json file.", type=str)
 parser.add_argument("-o", "--output", help="Output file name.", type=str)
 parser.add_argument(
-    "-t", "--type", help="Output only certain type of packages.", choices=["outdated", "updated", "phantom"], type=str)
-parser.add_argument("-q", "--quiet", help="Suppress output", action="store_true")
+    "-t", "--type", help="Output only certain type of packages. (All by default)", choices=["outdated", "updated", "phantom"], type=str)
+parser.add_argument("-q", "--quiet", help="Suppress output",
+                    action="store_true")
 args = parser.parse_args()
 
 quiet_mode = args.quiet
+
 
 def custom_print(text, color):
     '''Prints the text in the specified color'''
@@ -35,7 +37,7 @@ def custom_print(text, color):
 
 
 def check_deps(deps):
-    '''Checks the dependencies version and returns a dictionary of packages grouped by their type'''
+    '''Checks the dependencies version and returns a dictionary of packages, grouped by their type'''
     npm_url = "https://registry.npmjs.org/"
     out_dict = {"updated": [], "outdated": [], "phantom": []}
     if deps == None:
@@ -55,19 +57,19 @@ def check_deps(deps):
             custom_print(
                 f"\t[+] Package version: {OKGREEN}{package_version}", INFO)
             if latest_version == package_version:
-                out_dict["outdated"].append(dep)
-            else:
                 out_dict["updated"].append(dep)
+            else:
+                out_dict["outdated"].append(dep)
         elif res.status_code == 404:
             out_dict["phantom"].append(dep)
         else:
             custom_print(
-                f"[-]Error: Unknow status code {res.status_code}", ERROR)
+                f"[-]Error: Unknown status code {res.status_code}", ERROR)
     return out_dict
 
 
 def get_packages_by_version(url):
-    '''Resturns a dictionary of packages grouped by their type'''
+    '''Resturns a dictionary of packages, grouped by their type'''
     res = requests.get(url)
     res_json = res.json()
     out_dict = {"updated": [], "outdated": [], "phantom": []}
@@ -92,8 +94,9 @@ if __name__ == "__main__":
         if output != None:
             if(os.path.exists(output)):
                 custom_print(f"[-] Output file {output} already exists", ERROR)
-                choice = input(f"{INFO}Do you want to overwrite it? [y/n] {RESET}")
-                if not (choice == "y" or choice == "Y"):
+                choice = input(
+                    f"{INFO}Do you want to overwrite it? [y/n] {RESET}")
+                if not (choice.lower() == "y"):
                     custom_print("[-] Exiting...", ERROR)
                     exit(1)
         out_type = args.type
@@ -106,7 +109,7 @@ if __name__ == "__main__":
                     f.write(json.dumps(packages_version[out_type]))
         elif out_type != None:
             custom_print(
-                f"[+] Output filename not provided, defaulting to 'out.json'", WARNING)
+                f"[-] Output filename not provided, defaulting to 'out.json'", WARNING)
             with open("out.json", "w") as f:
                 f.write(json.dumps(packages_version[out_type]))
 
