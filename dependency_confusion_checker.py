@@ -30,9 +30,9 @@ args = parser.parse_args()
 
 # setting options
 url = args.url
-output = args.output
+write_file = args.write
 out_type = args.type
-check_vulns = args.cv
+check_vulns = args.check_vulns
 quiet_mode = args.quiet
 
 
@@ -99,17 +99,17 @@ if __name__ == "__main__":
         print(f"{INFO}Quiet mode enabled{RESET}")
     try:
         
-        if output != None:
-            if(os.path.exists(output)):
-                custom_print(f"[-] Output file {output} already exists", ERROR)
+        if write_file != None:
+            if(os.path.exists(write_file)):
+                custom_print(f"[-] Output file {write_file} already exists", ERROR)
                 choice = input(
                     f"{INFO}Do you want to overwrite it? [y/n] {RESET}")
                 if not (choice.lower() == "y"):
                     custom_print("[-] Exiting...", ERROR)
                     exit(1)
         packages_version = get_packages_by_version(url)
-        if output != None:
-            with open(output, "w") as f:
+        if write_file != None:
+            with open(write_file, "w") as f:
                 if out_type == None:
                     f.write(json.dumps(packages_version))
                 else:
