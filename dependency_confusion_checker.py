@@ -26,15 +26,18 @@ group_inputfile.add_argument(
 group_inputfile.add_argument(
     "-f", '--file', help="Path to package.json file.", type=str)
 parser.add_argument(
-    "-o", "--output", help="Write output to a file. (default = stdout)", type=str)
+    "-o", "--output", help="Write output to a file.", type=str)
 parser.add_argument(
     "-t", "--type", help="Write only certain type of packages to file. (default = all)", choices=["outdated", "updated", "phantom"], type=str)
 parser.add_argument("-q", "--quiet", help="Suppress output",
                     action="store_true")
 parser.add_argument("-cv", "--check-vulns",
                     help="Check packages for known vulnerabilities (default = off)", action="store_true")
-parser.add_argument("-v", "--verbose", help="Verbose", action="store_true")
+parser.add_argument("-v", "--verbose",
+                    help="Verbose output", action="store_true")
+
 args = parser.parse_args()
+
 
 # setting options
 url = args.url
@@ -52,6 +55,47 @@ def custom_print(text, color):
         print(color, text, RESET)
 
 
+def check_vulns_in_package(package_data):
+    '''Checks for the vulnerabilities in package'''
+    name = package_data["name"]
+    version = package_data["version"]
+    data = {
+        "name": name,
+        "version": version,
+        "requires": {
+            name: version
+        },
+        "dependencies": {
+            name: {
+                "version": version
+            }
+        }
+    }
+    npm_url = "https://registry.npmjs.org/-/npm/v1/security/audits"
+    res = requests.post(npm_url, json=data).json()
+
+    vulns = res['metadata']['vulnerabilities']
+    no_of_found_vulns_by_severity = []
+    for vuln in vulns:
+        if not vulns[vuln] == 0:
+            no_of_found_vulns_by_severity.append({vuln: vulns[vuln]})
+    if len(no_of_found_vulns_by_severity) > 0:
+        package_data["foundVulns"] = True
+        for vuln in no_of_found_vulns_by_severity:
+            package_data["vulns"].append(vuln)
+        vuln_ids = []
+        for action in res.get("actions"):
+            for resolve in action.get("resolves"):
+                if not resolve.get("id") == None:
+                    vuln_ids.append(resolve.get("id"))
+        vuln_advisories = []
+        for id in vuln_ids:
+            id = str(id)
+            vuln_advisories.append(res.get("advisories").get(id))
+        package_data["advisories"] = vuln_advisories
+    return package_data
+
+
 def check_deps(deps):
     '''Checks the dependencies version and returns a dictionary of packages, grouped by their type'''
     npm_url = "https://registry.npmjs.org/"
@@ -63,6 +107,7 @@ def check_deps(deps):
     for dep in deps:
         dep_url = npm_url + dep
         res = requests.get(dep_url)
+
         custom_print(f"[+] Checking package: {OKGREEN}{dep}", INFO)
         if res.status_code == 200:
             latest_version = version.parse(res.json()["dist-tags"]["latest"])
@@ -80,7 +125,19 @@ def check_deps(deps):
             if latest_version == package_version:
                 out_dict["updated"].append(dep)
             else:
-                out_dict["outdated"].append(dep)
+                if check_vulns:
+                    custom_print("\t[+] Checking for vulnerabilities...", INFO)
+                    out = {
+                        "name": dep,
+                        "version": deps[dep],
+                        "foundVulns": False,
+                        "vulns": [],
+                        "advisories": {}
+                    }
+                    out = check_vulns_in_package(out)
+                    out_dict["outdated"].append(out)
+                else:
+                    out_dict["outdated"].append(dep)
         elif res.status_code == 404:
             out_dict["phantom"].append(dep)
         else:
@@ -113,7 +170,7 @@ def get_packages_by_version(url):
     return out_dict
 
 
-if __name__ == "__main__":
+def main():
     '''Entry point'''
     print(f"{INFO}=== Dependency Confusion Checker ==={RESET}")
     print(f"{INFO}Press Ctrl + C to exit{RESET}")
@@ -165,11 +222,56 @@ if __name__ == "__main__":
 
             if packages_version.get("outdated").__len__() > 0:
                 custom_print("[👎] Outdated packages:", WARNING)
-                for package in packages_version.get("outdated"):
-                    custom_print(f"[+] {WARNING}{package}", INFO)
+
+                if not check_vulns:
+                    for package in packages_version.get("outdated"):
+                        custom_print(f"[+] {WARNING}{package}", INFO)
+                else:
+                    for package in packages_version.get("outdated"):
+                        if package['foundVulns'] == True:
+                            custom_print(
+                                f"[+] {WARNING}Vulns found in {OKGREEN}{package['name']}{WARNING}: {EXCITEMENT}YES", INFO)
+                            for vuln in package['vulns']:
+                                custom_print(
+                                    f"\t[+] Severity {EXCITEMENT}{vuln}", INFO)
+                            for advisory in package['advisories']:
+                                title = advisory.get("title")
+                                severity = advisory.get("severity")
+                                cves = advisory.get("cves")
+                                cvss_score = advisory.get("cvss").get("score")
+                                cvss_vector = advisory.get(
+                                    "cvss").get("vectorString")
+                                vuln_version = advisory.get(
+                                    "vulnerable_versions")
+                                advisory_url = advisory.get("url")
+                                custom_print(
+                                    f"\t[+] Title: {EXCITEMENT}{title}", INFO)
+                                custom_print(
+                                    f"\t[+] Severity: {EXCITEMENT}{severity}", INFO)
+                                custom_print(
+                                    f"\t[+] CVEs: {EXCITEMENT}{cves}", INFO)
+                                custom_print(
+                                    f"\t[+] CVSS Score: {EXCITEMENT}{cvss_score}", INFO)
+                                custom_print(
+                                    f"\t[+] CVSS Vector: {EXCITEMENT}{cvss_vector}", INFO)
+                                custom_print(
+                                    f"\t[+] Vuln Version: {EXCITEMENT}{vuln_version}", INFO)
+                                custom_print(
+                                    f"\t[+] URL: {EXCITEMENT}{advisory_url}", INFO)
+                        else:
+                            custom_print(
+                                f"[+] {WARNING}Vulns found in {OKGREEN}{package['name']}{WARNING}: {ERROR}NO", INFO)
+
             else:
                 custom_print("[+] No outdated packages found", INFO)
 
     except KeyboardInterrupt:
         print(f"\n{ERROR}[-] User Interrupt!  Exiting...{RESET}")
         exit(0)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"[-] Unknown Error :\n{ERROR}{e}{RESET}")
