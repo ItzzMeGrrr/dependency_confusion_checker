@@ -1,7 +1,7 @@
 import os
 import argparse
 import json
-from tabnanny import verbose
+import urllib3
 try:
     from packaging import version
     import requests
@@ -103,7 +103,7 @@ def check_deps(deps):
     if deps == None:
         custom_print("[-] No dependencies found in package.json", WARNING)
         return out_dict
-    custom_print("[+] Checking package versions...", INFO)
+
     for dep in deps:
         dep_url = npm_url + dep
         res = requests.get(dep_url)
@@ -146,12 +146,46 @@ def check_deps(deps):
     return out_dict
 
 
+def validate_url(url):
+    '''Validates the url'''
+    url = str(url)
+    if url.startswith("http") and url.endswith("package.json"):
+        if url.startswith("http://"):
+            url = url.replace("http", "https")
+        if url.startswith("https://github.com"):
+            url = url.replace("https://github.com",
+                              "https://raw.githubusercontent.com")
+            url = url.replace("/blob", "")
+        return url
+    else:
+        custom_print(
+            f"[-]Error: Invalid URL {url}", ERROR)
+        exit(1)
+
+
+def merge_dict(d1, d2):
+    '''Merges two dictionaries'''
+    for k in d2:
+        if k in d1:
+            d1[k].extend(d2[k])
+        else:
+            d1[k] = d2[k]
+    return d1
+
+
 def get_packages_by_version(url):
     '''Resturns a dictionary of packages, grouped by their type'''
 
     if url != None:
+        url = validate_url(url)
         res = requests.get(url)
-        input_json = res.json()
+        try:
+            input_json = res.json()
+        except json.decoder.JSONDecodeError as e:
+            custom_print(
+                f"[-] Error: Invalid json from '{url}', please ensure url returns valid json.", ERROR)
+            exit(1)
+
     elif file != None:
         with open(file) as f:
             input_json = json.load(f)
@@ -160,13 +194,15 @@ def get_packages_by_version(url):
         exit(1)
     out_dict = {"updated": [], "outdated": [], "phantom": []}
     if (input_json.get("dependencies") == None) and (input_json.get("devDependencies") == None):
-        return None
+        custom_print("[+] No packages found in package.json", INFO)
+        exit(1)
+    custom_print("[+] Checking package versions...", INFO)
     if(input_json.get("dependencies") != None):
         deps = input_json["dependencies"]
-        out_dict.update(check_deps(deps))
+        out_dict = check_deps(deps)
     if(input_json.get("devDependencies") != None):
         dev_deps = input_json["devDependencies"]
-        out_dict.update(check_deps(dev_deps))
+        merge_dict(out_dict, check_deps(dev_deps))
     return out_dict
 
 
@@ -203,67 +239,64 @@ def main():
             with open("out.json", "w") as f:
                 f.write(json.dumps(packages_version[out_type]))
         custom_print(f"\n\r=== Results ===", INFO)
-        if packages_version == None:
-            custom_print("[+] No packages found in package.json", INFO)
+
+        if packages_version.get("phantom").__len__() > 0:
+            custom_print("[💀] Phantom package(s) found!", EXCITEMENT)
+            for package in packages_version.get("phantom"):
+                custom_print(f"[+] {EXCITEMENT}{package}", INFO)
         else:
-            if packages_version.get("phantom").__len__() > 0:
-                custom_print("[💀] Phantom package(s) found!", EXCITEMENT)
-                for package in packages_version.get("phantom"):
-                    custom_print(f"[+] {EXCITEMENT}{package}", INFO)
+            custom_print("[+] No phantom packages found", INFO)
+
+        if packages_version.get("updated").__len__() > 0:
+            custom_print("[👍] Up to date packages:", OKGREEN)
+            for package in packages_version.get("updated"):
+                custom_print(f"[+] {OKGREEN}{package}", INFO)
+        else:
+            custom_print("[+] No up to date packages found", INFO)
+
+        if packages_version.get("outdated").__len__() > 0:
+            custom_print("[👎] Outdated packages:", WARNING)
+            if not check_vulns:
+                for package in packages_version.get("outdated"):
+                    custom_print(f"[+] {WARNING}{package}", INFO)
             else:
-                custom_print("[+] No phantom packages found", INFO)
-
-            if packages_version.get("updated").__len__() > 0:
-                custom_print("[👍] Up to date packages:", OKGREEN)
-                for package in packages_version.get("updated"):
-                    custom_print(f"[+] {OKGREEN}{package}", INFO)
-            else:
-                custom_print("[+] No up to date packages found", INFO)
-
-            if packages_version.get("outdated").__len__() > 0:
-                custom_print("[👎] Outdated packages:", WARNING)
-
-                if not check_vulns:
-                    for package in packages_version.get("outdated"):
-                        custom_print(f"[+] {WARNING}{package}", INFO)
-                else:
-                    for package in packages_version.get("outdated"):
-                        if package['foundVulns'] == True:
+                for package in packages_version.get("outdated"):
+                    if package['foundVulns'] == True:
+                        custom_print(
+                            f"[+] {WARNING}Vulns found in {OKGREEN}{package['name']}{WARNING}: {EXCITEMENT}YES", INFO)
+                        for vuln in package['vulns']:
                             custom_print(
-                                f"[+] {WARNING}Vulns found in {OKGREEN}{package['name']}{WARNING}: {EXCITEMENT}YES", INFO)
-                            for vuln in package['vulns']:
-                                custom_print(
-                                    f"\t[+] Severity {EXCITEMENT}{vuln}", INFO)
-                            for advisory in package['advisories']:
-                                title = advisory.get("title")
-                                severity = advisory.get("severity")
-                                cves = advisory.get("cves")
-                                cvss_score = advisory.get("cvss").get("score")
-                                cvss_vector = advisory.get(
-                                    "cvss").get("vectorString")
-                                vuln_version = advisory.get(
-                                    "vulnerable_versions")
-                                advisory_url = advisory.get("url")
-                                custom_print(
-                                    f"\t[+] Title: {EXCITEMENT}{title}", INFO)
-                                custom_print(
-                                    f"\t[+] Severity: {EXCITEMENT}{severity}", INFO)
-                                custom_print(
-                                    f"\t[+] CVEs: {EXCITEMENT}{cves}", INFO)
-                                custom_print(
-                                    f"\t[+] CVSS Score: {EXCITEMENT}{cvss_score}", INFO)
-                                custom_print(
-                                    f"\t[+] CVSS Vector: {EXCITEMENT}{cvss_vector}", INFO)
-                                custom_print(
-                                    f"\t[+] Vuln Version: {EXCITEMENT}{vuln_version}", INFO)
-                                custom_print(
-                                    f"\t[+] URL: {EXCITEMENT}{advisory_url}", INFO)
-                        else:
+                                f"\t[+] Severity {EXCITEMENT}{vuln}", INFO)
+                        for advisory in package['advisories']:
+                            title = advisory.get("title")
+                            severity = advisory.get("severity")
+                            cves = advisory.get("cves")
+                            cvss_score = advisory.get("cvss").get("score")
+                            cvss_vector = advisory.get(
+                                "cvss").get("vectorString")
+                            vuln_version = advisory.get(
+                                "vulnerable_versions")
+                            advisory_url = advisory.get("url")
                             custom_print(
-                                f"[+] {WARNING}Vulns found in {OKGREEN}{package['name']}{WARNING}: {ERROR}NO", INFO)
+                                f"\t[+] Title: {EXCITEMENT}{title}", INFO)
+                            custom_print(
+                                f"\t[+] Severity: {EXCITEMENT}{severity}", INFO)
+                            custom_print(
+                                f"\t[+] CVEs: {EXCITEMENT}{cves}", INFO)
+                            custom_print(
+                                f"\t[+] CVSS Score: {EXCITEMENT}{cvss_score}", INFO)
+                            custom_print(
+                                f"\t[+] CVSS Vector: {EXCITEMENT}{cvss_vector}", INFO)
+                            custom_print(
+                                f"\t[+] Vuln Version: {EXCITEMENT}{vuln_version}", INFO)
+                            custom_print(
+                                f"\t[+] URL: {EXCITEMENT}{advisory_url}", INFO)
+                    else:
+                        custom_print(
+                            f"[+] {WARNING}Vulns found in {OKGREEN}{package['name']}{WARNING}: {ERROR}NO", INFO)
 
-            else:
-                custom_print("[+] No outdated packages found", INFO)
+        else:
+            custom_print("[+] No outdated packages found", INFO)
 
     except KeyboardInterrupt:
         print(f"\n{ERROR}[-] User Interrupt!  Exiting...{RESET}")
@@ -274,4 +307,4 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"[-] Unknown Error :\n{ERROR}{e}{RESET}")
+        print(f"{ERROR}[-] Error :\n{e}{RESET}")
