@@ -1,11 +1,11 @@
-import os
 import argparse
 import json
-import urllib3
+import os
+
 try:
-    from packaging import version
     import requests
     from colorama import Fore
+    from packaging import version
 except ImportError as e:
     print("Please install the required packages by typing:")
     print("pip install -r requirements.txt")
@@ -100,6 +100,7 @@ def check_vulns_in_package(package_data):
 
 
 def check_deps(deps):
+    global out_dict
     '''Checks the dependencies version and returns a dictionary of packages, grouped by their type'''
     npm_url = "https://registry.npmjs.org/"
     
@@ -194,12 +195,16 @@ def get_packages_by_type(url):
             exit(1)
     elif file != None:#load json from file
         with open(file) as f:
-            input_json = json.load(f)
+            try:
+                input_json = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                custom_print(
+                    f"[-] Error: Invalid json in '{file}', please ensure file contains valid json.", ERROR)
+                exit(1)
     else:
         print("[-] Error: No input file or url specified", ERROR)
         exit(1)
     
-    #template for output
     
 
     deps = input_json.get("dependencies")
@@ -263,6 +268,8 @@ def print_outdated(outdated_packages):
 
 
 def main():
+    global out_dict, out_type, output_file, check_vulns, verbose, quiet_mode
+    
     '''Entry point'''
     print(f"{INFO}=== Dependency Confusion Checker ==={RESET}")
     print(f"{INFO}Press Ctrl + C to exit{RESET}")
