@@ -14,7 +14,7 @@ Jinja2==3.0.1
 jnius==1.1.0
 keyring==23.6.0
 lockfile==0.12.2
-lxml==4.7.1
+lxml==4.9.1
 mock==4.0.3
 numpy==1.21.0
 ordereddict==1.1
