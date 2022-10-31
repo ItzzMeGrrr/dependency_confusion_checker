@@ -16,7 +16,7 @@ keyring==23.6.0
 lockfile==0.12.2
 lxml==4.9.1
 mock==4.0.3
-numpy==1.21.0
+numpy==1.22.2
 ordereddict==1.1
 Pillow==9.1.1
 protobuf==4.21.6
