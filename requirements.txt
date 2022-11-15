@@ -18,7 +18,7 @@ lxml==4.9.1
 mock==4.0.3
 numpy==1.22.2
 ordereddict==1.1
-Pillow==9.1.1
+Pillow==9.2.0
 protobuf==4.21.6
 pyOpenSSL==22.0.0
 pywin32==304
@@ -31,3 +31,4 @@ unicodedata2==14.0.0
 wincertstore==0.2.1
 xmlrpclib==1.0.1
 zipp==3.6.0
+setuptools>=65.5.1 # not directly required, pinned by Snyk to avoid a vulnerability
