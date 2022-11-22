@@ -18,7 +18,7 @@ lxml==4.9.1
 mock==4.0.3
 numpy==1.22.2
 ordereddict==1.1
-Pillow==9.2.0
+Pillow==9.3.0
 protobuf==4.21.6
 pyOpenSSL==22.0.0
 pywin32==304
